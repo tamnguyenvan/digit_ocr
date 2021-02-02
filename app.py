@@ -394,9 +394,9 @@ class MainWindow(QtWidgets.QWidget):
             else:
                 interval = config['interval']
                 if isinstance(interval, float):
-                    text = '{:.2f} seconds ago: Bid: '.forma(interval * (i+1))
+                    text = '{:.2f} seconds ago: Bid: '.forma(interval * i)
                 else:
-                    text = '{:02d} seconds ago: Bid: '.format(interval * (i+1))
+                    text = '{:02d} seconds ago: Bid: '.format(interval * i)
                 left_row_layout.addWidget(QtWidgets.QLabel(text))
             value_widget = QtWidgets.QLabel('0')
             self.values['bid'].append(value_widget)
