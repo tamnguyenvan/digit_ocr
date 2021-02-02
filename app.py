@@ -215,7 +215,7 @@ class OCRWorker(QRunnable):
                         sum_ = 0
                         for cell in rs:
                             try:
-                                sum_ += float(cell[4])
+                                sum_ += int(cell[4])
                             except:
                                 pass
                         sums[col_name].appendleft(sum_)
@@ -389,7 +389,15 @@ class MainWindow(QtWidgets.QWidget):
             left_row_widget = QtWidgets.QWidget()
 
             left_row_layout = QtWidgets.QHBoxLayout()
-            left_row_layout.addWidget(QtWidgets.QLabel('Bid:'))
+            if i == 0:
+                left_row_layout.addWidget(QtWidgets.QLabel('Newest result: Bid: '))
+            else:
+                interval = config['interval']
+                if isinstance(interval, float):
+                    text = '{:.2f} seconds ago: Bid: '.forma(interval)
+                else:
+                    text = '{:02d} seconds ago: Bid: '.format(interval)
+                left_row_layout.addWidget(QtWidgets.QLabel(text))
             value_widget = QtWidgets.QLabel('0')
             self.values['bid'].append(value_widget)
             left_row_layout.addWidget(value_widget)
