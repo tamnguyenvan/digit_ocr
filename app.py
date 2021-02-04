@@ -234,87 +234,82 @@ class ROISelector(QtWidgets.QMainWindow):
         self.is_selected = False
         self.setGeometry(0, 0, screen_width, screen_height)
         self.setWindowTitle(' ')
-        self.begin = QtCore.QPoint()
-        self.end = QtCore.QPoint()
         
-        # Calculate 2 columns postion
-        self.first_x1_ratio = config['first_x1_ratio']
-        self.first_x2_ratio = config['first_x2_ratio']
-        self.second_x1_ratio = config['second_x1_ratio']
-        self.second_x2_ratio = config['second_x2_ratio']
-        self._calc_columns()
+        # ROIs
+        self.rois = [[0, 0, 0, 0], [0, 0, 0, 0]]
+        self.selected_rois = 0
         
         self.setWindowOpacity(0.3)
         QtWidgets.QApplication.setOverrideCursor(
             QtGui.QCursor(QtCore.Qt.CrossCursor)
         )
         self.setWindowFlags(QtCore.Qt.FramelessWindowHint)
-    
-    def _calc_columns(self):
-        width = (self.end.x() - self.begin.x())
-        self.first_x1 = self.begin.x() + int(width * self.first_x1_ratio)
-        self.first_y1 = self.begin.y()
-        self.first_x2 = self.begin.x() + int(width * self.first_x2_ratio)
-        self.first_y2 = self.end.y()
-        self.second_x1 = self.begin.x() + int(width * self.second_x1_ratio)
-        self.second_y1 = self.begin.y()
-        self.second_x2 = self.begin.x() + int(width * self.second_x2_ratio)
-        self.second_y2 = self.end.y()
-    
-    def _get_roi(self, begin, end):
-        """
-        """
-        x1 = min(begin.x(), end.x())
-        y1 = min(begin.y(), end.y())
-        x2 = max(begin.x(), end.x())
-        y2 = max(begin.y(), end.y())
-        return x1, y1, x2, y2
 
     def paintEvent(self, event):
         qp = QtGui.QPainter(self)
         qp.setPen(QtGui.QPen(QtGui.QColor('black'), 3))
         qp.setBrush(QtGui.QColor(128, 128, 255, 128))
-        qp.drawRect(QtCore.QRect(self.begin, self.end))
-        first_column_pts = (
-            QtCore.QPoint(self.first_x1, self.begin.y()),
-            QtCore.QPoint(self.first_x2, self.end.y())
-        )
-        second_column_pts = (
-            QtCore.QPoint(self.second_x1, self.begin.y()),
-            QtCore.QPoint(self.second_x2, self.end.y())
-        )
-        qp.drawRect(QtCore.QRect(*first_column_pts))
-        qp.drawRect(QtCore.QRect(*second_column_pts))
+
+        # Draw ROIs
+        if self.rois[0][0] > 0:
+            left_column_pts = (
+                QtCore.QPoint(*self.rois[0][:2]),
+                QtCore.QPoint(*self.rois[0][2:]),
+            )
+            qp.drawRect(QtCore.QRect(*left_column_pts))
+        
+        if self.rois[1][0] > 0:
+            right_column_pts = (
+                QtCore.QPoint(*self.rois[1][:2]),
+                QtCore.QPoint(*self.rois[1][2:]),
+            )
+            qp.drawRect(QtCore.QRect(*right_column_pts))
     
     def keyPressEvent(self, event: QtGui.QKeyEvent) -> None:
         if event.key() == Qt.Key_Escape:
             self.switch_window.emit()
 
     def mousePressEvent(self, event):
-        self.begin = event.pos()
-        self.end = self.begin
-        self._calc_columns()
+        self.selected_rois += 1
+        if self.selected_rois == 1:
+            pos = event.pos()
+            x, y = pos.x(), pos.y()
+            self.rois[0] = [x, y, x, y]
+        elif self.selected_rois == 2:
+            pos = event.pos()
+            x, y = pos.x(), pos.y()
+            self.rois[1] = [x, y, x, y]
+            
         self.update()
 
     def mouseMoveEvent(self, event):
-        self.end = event.pos()
-        self._calc_columns()
+        pos = event.pos()
+        x, y = pos.x(), pos.y()
+        if self.selected_rois == 1:
+            self.rois[0][2:] = [x, y]
+        elif self.selected_rois == 2:
+            self.rois[1][2:] = [x, y]
         self.update()
 
     def mouseReleaseEvent(self, event):
-        x1, y1, x2, y2 = self._get_roi(self.begin, self.end)
-        self._calc_columns()
-        self.setGeometry(x1, y1, (x2 - x1), (y2 - y1))
-        ready_event.set()
+        if self.selected_rois == 1:
+            x1, y1, x2, y2 = self.rois[0]
+        elif self.selected_rois >= 2:
+            x1 = min(*self.rois[0][::2], *self.rois[1][::2])
+            y1 = min(*self.rois[0][1::2], *self.rois[1][1::2])
+            x2 = max(*self.rois[0][::2], *self.rois[1][::2])
+            y2 = min(*self.rois[0][1::2], *self.rois[1][1::2])
 
-        # Extract data
-        pool = QThreadPool.globalInstance()
-        pts1 = (self.first_x1, self.first_y1, self.first_x2, self.first_y2)
-        pts2 = (self.second_x1, self.second_y1, self.second_x2, self.second_y2)
-        runnable = OCRWorker(pts1, pts2, config['interval'])
-        pool.start(runnable)
-        
-        self.switch_window.emit()
+            self.setGeometry(x1, y1, (x2 - x1), (y2 - y1))
+
+        if self.selected_rois >= 2:
+            ready_event.set()
+
+            # Extract data
+            pool = QThreadPool.globalInstance()
+            runnable = OCRWorker(self.rois[0], self.rois[1], config['interval'])
+            pool.start(runnable)
+            self.switch_window.emit()
 
 
 class MainWindow(QtWidgets.QWidget):
@@ -394,7 +389,7 @@ class MainWindow(QtWidgets.QWidget):
             else:
                 interval = config['interval']
                 if isinstance(interval, float):
-                    text = '{:.2f} seconds ago: Bid: '.forma(interval * i)
+                    text = '{:.2f} seconds ago: Bid: '.format(interval * i)
                 else:
                     text = '{:02d} seconds ago: Bid: '.format(interval * i)
                 left_row_layout.addWidget(QtWidgets.QLabel(text))
