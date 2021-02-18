@@ -632,20 +632,25 @@ class Controller:
                 activate_message = 'The trial has expired. Please visit https://buyit.com to get activation key!'
                 activate_required = True
             else:
-                status = LexActivator.ActivateTrial()
-                if LexStatusCodes.LA_OK == status:
-                    logger.info("Product trial activated successfully!")
-                    activate_required = False
-                elif LexStatusCodes.LA_TRIAL_EXPIRED == status:
-                    logger.info("Product trial has expired")
-                    activate_message = 'The trial has expired. Please visit https://buyit.com to get activation key!'
-                    activate_required = True
-                else:
-                    logger.info("Product trial has failed")
-                    activate_message = 'The trial has failed. Please visit https://buyit.com to get activation key!'
+                try:
+                    status = LexActivator.ActivateTrial()
+                    if LexStatusCodes.LA_OK == status:
+                        logger.info("Product trial activated successfully!")
+                        activate_required = False
+                    elif LexStatusCodes.LA_TRIAL_EXPIRED == status:
+                        logger.info("Product trial has expired")
+                        activate_message = 'The trial has expired. Please visit https://buyit.com to get activation key!'
+                        activate_required = True
+                    else:
+                        logger.info("Product trial has failed")
+                        activate_message = 'The trial has failed. Please visit https://buyit.com to get activation key!'
+                        activate_required = True
+                except Exception as e:
+                    logger.error(f'Trial activation has failed')
+                    activate_message = 'The trial activation has failed. Please visit https://buyit.com to get activation key!'
                     activate_required = True
 
-        if not activate_required:
+        if activate_required:
             self.activate_window = ActivateWindow(activate_message)
             self.activate_window.switch_window.connect(self.show_main)
             self.activate_window.show()
