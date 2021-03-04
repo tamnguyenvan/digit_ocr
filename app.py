@@ -303,16 +303,16 @@ class MainWindow(QtWidgets.QWidget):
         """
         """
         QtWidgets.QWidget.__init__(self)
-        self.setGeometry(100, 100, 300, 300)
-        self.text_len = 15
+        self.setGeometry(400, 400, 300, 300)
+        self.text_len = 13
         self.setupUi(self)
         
         # Step counter
         self.step_cnt = 0
-        self.steps = [int(x * 60) for x in config['time_periods']]
+        self.steps = [int(x) for x in config['time_periods']]
         self.history = {}
         for period in config['time_periods']:
-            max_len = int(period * 60)
+            max_len = int(period)
             self.history[period] = {
                 'bid': deque([0] * max_len, maxlen=max_len),
                 'ask': deque([0] * max_len, maxlen=max_len),
@@ -332,7 +332,7 @@ class MainWindow(QtWidgets.QWidget):
     
     def setupUi(self, Form):
         Form.setObjectName('Form')
-        Form.resize(400, 300)
+        Form.resize(70, 300)
         g_layout = QtWidgets.QVBoxLayout()
         row_widget_1 = QtWidgets.QWidget()
         row_widget_2 = QtWidgets.QWidget()
@@ -340,7 +340,7 @@ class MainWindow(QtWidgets.QWidget):
         g_layout.addWidget(row_widget_2)
 
         # Setup row 1
-        layout_1 = QtWidgets.QHBoxLayout()
+        layout_1 = QtWidgets.QGridLayout()
         row_widget_1.setLayout(layout_1)
         self.select_button = QtWidgets.QPushButton(Form)
         self.select_button.setObjectName('select_button')
@@ -351,14 +351,10 @@ class MainWindow(QtWidgets.QWidget):
         self.stop_button = QtWidgets.QPushButton(Form)
         self.stop_button.setText('Stop')
 
-        layout_1.addStretch(1)
-        layout_1.addWidget(self.select_button)
-        layout_1.addStretch(1)
-        layout_1.addWidget(self.view_button)
-        layout_1.addStretch(1)
-        layout_1.addWidget(self.start_button)
-        layout_1.addStretch(1)
-        layout_1.addWidget(self.stop_button)
+        layout_1.addWidget(self.select_button, 0, 0)
+        layout_1.addWidget(self.view_button, 0, 1)
+        layout_1.addWidget(self.start_button, 1, 0)
+        layout_1.addWidget(self.stop_button, 1, 1)
         
         # Setup row 2
         row_widget_2_layout = QtWidgets.QHBoxLayout()
@@ -393,11 +389,18 @@ class MainWindow(QtWidgets.QWidget):
             if i == 0:
                 label_widget_layout.addWidget(QtWidgets.QLabel('Newest'))
             else:
-                text = '{:<8}'.format('%s min.' % period)
+                if period < 60:
+                    text = '{:<8}'.format('%s sec.' % period)
+                else:
+                    if period % 60 == 0:
+                        text = '{:<8}'.format('%d min.' % (period // 60))
+                    else:
+                        text = '{:<8}'.format('%.2f min.' % (period / 70))
                 label_widget_layout.addWidget(QtWidgets.QLabel(text))
 
             # Bid column
             bid_widget_layout.addWidget(QtWidgets.QLabel('Bid'))
+            bid_widget_layout.setAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter)
             
             # Value column
             if i == 0:
@@ -414,7 +417,7 @@ class MainWindow(QtWidgets.QWidget):
             
             # Ask column
             label = QtWidgets.QLabel('Ask')
-            label.setAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter)
+            label.setAlignment(QtCore.Qt.AlignLeft | QtCore.Qt.AlignVCenter)
             ask_widget_layout.addWidget(label)
             
         self.setLayout(g_layout)
@@ -446,7 +449,7 @@ class MainWindow(QtWidgets.QWidget):
                 self.values[0].setText(text)
             
             for i, period in enumerate(config['time_periods'], 1):
-                if self.step_cnt % (period * 60) == 0:
+                if self.step_cnt % period == 0:
                     acc_bid = sum(self.history[period]['bid'])
                     acc_ask = sum(self.history[period]['ask'])
                     if acc_bid == 0 or acc_ask == 0:
